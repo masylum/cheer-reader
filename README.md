@@ -92,7 +92,6 @@ reader mode uses both of these techniques itself. Sanitizing unsafe content out 
 ## Contributing
 
 Please see our [Contributing](CONTRIBUTING.md) document.
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%
 
 ## License
 
