@@ -98,7 +98,7 @@ type Options = {
     baseURI?: string
 }
 
-export type Metadata = {
+type Metadata = {
     title?: string | null
     byline?: string | null
     excerpt?: string | null
@@ -107,6 +107,12 @@ export type Metadata = {
     datePublished?: string | null
 }
 
+/**
+ * The object that `parse` returns.
+ *
+ * It contains some metadata, and if the `extraction` option is set to `true` (default),
+ * it also contains the extracted content.
+ */
 export type ReadabilityResult = {
     title: string | null
     byline: string | null
@@ -138,6 +144,12 @@ type Candidate = Element & {
     contentScore: number
 }
 
+/**
+ * Readability is the main class of the library.
+ *
+ * It exposes a single method, `parse`, which takes an HTML string and returns
+ * an object containing the extracted content.
+ */
 export class Readability {
     private $: CheerioAPI
     private options: Options

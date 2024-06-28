@@ -29,10 +29,10 @@ The implementation aims to be the same and it keeps the same test set to ensure 
 
 ## Installation
 
-`cheer-reader` is available on npm:
+`cheer-reader` is available on jsr:
 
 ```bash
-npm install cheer-reader
+npx jsr add @paoramen/cheer-reader
 ```
 
 ## Basic usage
