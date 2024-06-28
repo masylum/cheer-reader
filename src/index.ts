@@ -182,7 +182,7 @@ export class Readability {
      * subtree, except those that match the classesToPreserve array
      * from the options object.
      */
-    cleanClasses($el: Cheerio<Element>) {
+    private cleanClasses($el: Cheerio<Element>) {
         const classesToPreserve = this.options.classesToPreserve
         const className = ($el.attr('class') || '')
             .split(/\s+/)
@@ -324,7 +324,7 @@ export class Readability {
         return curTitle
     }
 
-    prepArticle($articleContent: Cheerio<Element>) {
+    private prepArticle($articleContent: Cheerio<Element>) {
         cleanStyles($articleContent[0]!)
 
         // Check for data tables before we continue, to avoid removing items in
@@ -1169,7 +1169,7 @@ export class Readability {
         return metadata
     }
 
-    addContentScore(element: Candidate) {
+    private addContentScore(element: Candidate) {
         if (typeof element.contentScore !== 'undefined') return element
 
         let contentScore = 0
@@ -1270,7 +1270,7 @@ export class Readability {
     /**
      * Return an object indicating how many rows and columns this table has.
      */
-    getRowAndColumnCount($table: Cheerio<Element>) {
+    private getRowAndColumnCount($table: Cheerio<Element>) {
         let rows = 0
         let columns = 0
         const $trs = $table.find('tr')
