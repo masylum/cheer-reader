@@ -1,0 +1,45 @@
+{
+    "name": "cheer-reader",
+    "version": "0.0.1",
+    "description": "A cheerio port of readability.js",
+    "main": "index.js",
+    "types": "dist/index.d.ts",
+    "type": "module",
+    "scripts": {
+        "lint": "eslint .",
+        "prettier": "prettier --check .",
+        "test": "vitest",
+        "generate-testcase": "node test/generate-testcase.js",
+        "build": "tsup src/index.ts --format cjs,esm --dts",
+        "release": "release-it"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/masylum/cheer-reader"
+    },
+    "author": "Pao Ramen",
+    "license": "Apache-2.0",
+    "engines": {
+        "node": ">=14.0.0"
+    },
+    "homepage": "https://github.com/masylum/cheer-reader",
+    "devDependencies": {
+        "@eslint/js": "^9.5.0",
+        "@release-it/keep-a-changelog": "5.0.0",
+        "@types/eslint__js": "^8.42.3",
+        "@types/js-beautify": "^1.14.3",
+        "@types/node": "^20.14.9",
+        "eslint": "^8.57.0",
+        "globals": "^15.6.0",
+        "js-beautify": "1.14.7",
+        "prettier": "3.3.2",
+        "release-it": "17.0.1",
+        "tsup": "^8.1.0",
+        "typescript": "^5.5.2",
+        "typescript-eslint": "^7.14.1",
+        "vitest": "^1.6.0"
+    },
+    "dependencies": {
+        "cheerio": "^1.0.0-rc.12"
+    }
+}
