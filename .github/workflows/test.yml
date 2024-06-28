@@ -1,10 +1,9 @@
 name: Test
 
-on:
-    workflow_call:
+on: [push]
 
 jobs:
-    common:
+    test:
         runs-on: ubuntu-latest
 
         strategy:
