@@ -1745,7 +1745,7 @@ export class Readability {
 
         if (this.options.extraction) {
             // Remove all comments
-            removeComments(this.$.root()[0])
+            removeComments(this.$, this.$.root()[0])
 
             // Remove all scripts once we've got the metadata
             removeNodes(this.$('script, noscript'))

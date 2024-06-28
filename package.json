@@ -8,6 +8,7 @@
     "scripts": {
         "lint": "eslint .",
         "prettier": "prettier --check .",
+        "prettier-fix": "prettier --write .",
         "test": "vitest",
         "generate-testcase": "node test/generate-testcase.js",
         "build": "tsup src/index.ts --format cjs,esm --dts",

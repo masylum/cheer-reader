@@ -1,5 +1,9 @@
-import { type Cheerio, type Element, type AnyNode } from 'cheerio'
-import { removeElement } from 'domutils'
+import {
+    type Cheerio,
+    type Element,
+    type AnyNode,
+    type CheerioAPI,
+} from 'cheerio'
 
 import { whitespace } from './regexes.js'
 
@@ -15,17 +19,17 @@ export function removeNodes(
     }
 }
 
-export function removeComments(node: AnyNode) {
+export function removeComments($: CheerioAPI, node: AnyNode) {
     if ((node.type === 'tag' || node.type === 'root') && node.children) {
         for (let i = node.children.length - 1; i >= 0; i--) {
-            removeComments(node.children[i]!)
+            removeComments($, node.children[i]!)
         }
     } else if (
         node.type === 'comment' ||
         node.type === 'directive' ||
         node.type === 'cdata'
     ) {
-        return removeElement(node)
+        return $(node).remove()
     }
 }
 
