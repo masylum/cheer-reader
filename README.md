@@ -5,22 +5,22 @@ that uses [cheerio](https://cheerio.js.org) instead of native DOM APIs.
 
 The goals of this port are the following:
 
--   _Portability_: Most runtimes and Web Workers don't support DOM apis.
+-   **Portability**: Most runtimes and Web Workers don't support DOM apis.
     By using cheerio, we ensure that you can run readability wherever you want.
     If your goal is to run it in the main thread of the browser, you can stick to the original
     implementation.
--   _Performance_: For non-native runtimes, we rely in JSDOM to simulate native DOM APIs. JSDOM
+-   **Performance**: For non-native runtimes, we rely in JSDOM to simulate native DOM APIs. JSDOM
     does a lot besides parsing HTML, and is pretty heavy and slow. **cheerio** instead is lightweight
     and fast. Overall, I've experienced that this port performs 6-8x times faster and consumes a lot
     less memory than the original one. You can even use [htmlparser2](https://github.com/fb55/htmlparser2)
     if you need more performance.
--   _Compatibility_: In order to avoid using JSOM, you could use readability's [JSDOMParser](https://github.com/mozilla/readability/blob/main/JSDOMParser.js),
+-   **Compatibility**: In order to avoid using JSOM, you could use readability's [JSDOMParser](https://github.com/mozilla/readability/blob/main/JSDOMParser.js),
     [Happy Dom](https://github.com/capricorn86/happy-dom) or [Linkedom](https://github.com/WebReflection/linkedom).
     I had compatibility problems using those alternative implementations, but **cheerio** worked flawlesly even
     with the most broken html documents that you can find on the internet. You even have the option to use
     [htmlparser2](https://github.com/fb55/htmlparser2) instead of **cherio's** default [parse5](https://github.com/inikulin/parse5)
     for less strict parsing.
--   _Extensability_: The original implementation is pretty hard to read and maintain. While I didn't deviate
+-   **Extensability**: The original implementation is pretty hard to read and maintain. While I didn't deviate
     much from it, I tried to modernize the code base a little bit. I hope people can help me out, specially with
     the `_grabArticle` gigantic method with nested while loops. I also saw a lot of issues on the repo for top pages
     that didn't seem taken care of. It is my intention to try to fix those as I move forward.
