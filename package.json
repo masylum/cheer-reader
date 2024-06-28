@@ -11,7 +11,6 @@
         "prettier-fix": "prettier --write .",
         "test": "vitest",
         "generate-testcase": "node test/generate-testcase.js",
-        "build": "tsup src/index.ts --format cjs,esm --dts",
         "release": "release-it"
     },
     "repository": {
@@ -35,7 +34,6 @@
         "js-beautify": "1.14.7",
         "prettier": "3.3.2",
         "release-it": "17.0.1",
-        "tsup": "^8.1.0",
         "typescript": "^5.5.2",
         "typescript-eslint": "^7.14.1",
         "vitest": "^1.6.0"
