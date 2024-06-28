@@ -18,7 +18,7 @@ jobs:
 
         steps:
             - name: Tests
-              uses: ./.github/workflows/common.yml
+              uses: ./.github/workflows/test.yml
 
             - name: Publish package
               run: npx jsr publish
