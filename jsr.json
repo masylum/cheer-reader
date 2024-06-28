@@ -2,5 +2,7 @@
     "name": "@paoramen/cheer-reader",
     "version": "0.1.0",
     "exports": "./src/index.ts",
-    "exclude": ["tests"]
+    "publish": {
+        "exclude": ["tests"]
+    }
 }
