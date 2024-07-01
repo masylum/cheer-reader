@@ -54,19 +54,6 @@ export function isWhitespace($element: Cheerio<AnyNode>) {
     return getInnerText($element).length === 0 || $element.is('br')
 }
 
-export function isElementWithoutContent($element: Cheerio<Element>) {
-    // Check if the element has no text content (ignoring whitespace)
-    const hasNoText = $element.text().trim().length === 0
-
-    // Check if the element has no children or only <br> or <hr> tags as children
-    const children = $element.children()
-    const brCount = $element.find('br').length
-    const hrCount = $element.find('hr').length
-    const hasOnlyBrOrHr = children.length === brCount + hrCount
-
-    return hasNoText && (children.length === 0 || hasOnlyBrOrHr)
-}
-
 /**
  * Compares second text to first one
  *
@@ -86,14 +73,4 @@ export function textSimilarity(textA: string, textB: string) {
     const distanceB = uniqTokensB.join(' ').length / tokensB.join(' ').length
 
     return 1 - distanceB
-}
-
-/**
- * Check whether the input string could be a byline.
- * This verifies that the input is a string, and that the length
- * is less than 100 chars.
- */
-export function isValidByline(byline: string) {
-    const length = byline.trim().length
-    return length > 0 && length < 100
 }

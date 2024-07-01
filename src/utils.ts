@@ -1,12 +1,12 @@
 import { type Cheerio, type Element } from 'cheerio'
-import { isElementWithoutContent } from './textUtils.js'
 import { removeAndGetNext } from './dom.js'
 import { getNextNode } from './dom.js'
 import { hasContent } from './regexes.js'
 
 // prettier-ignore
-export const DIV_TO_P_ELEMS = new Set([ 'blockquote', 'dl', 'div', 'img', 'ol', 'p', 'pre', 'table', 'ul', ])
-const TAGS_TO_SIMPLIFY = new Set(['div', 'section'])
+export const DIV_TO_P_ELEMS = new Set([ 'blockquote', 'dl', 'div', 'img', 'ol', 'p', 'pre', 'table', 'ul'])
+// prettier-ignore
+const TAGS_TO_SIMPLIFY = new Set([ 'div', 'span', 'section', 'aside', 'article', 'main' ])
 
 // tslint:disable-next-line
 export function isDataTable(t: any) {
@@ -58,11 +58,23 @@ export function hasSingleTagInsideElement(element: Element, tag: string) {
     ) {
         return false
     }
-
     // And there should be no text nodes with real content
     return !element.childNodes.some(
         (node) => node.type === 'text' && hasContent.test(node.data),
     )
+}
+
+export function isElementWithoutContent($element: Cheerio<Element>) {
+    // Check if the element has no text content (ignoring whitespace)
+    const hasNoText = $element.text().trim().length === 0
+
+    // Check if the element has no children or only <br> or <hr> tags as children
+    const children = $element.children()
+    const brCount = $element.find('br').length
+    const hrCount = $element.find('hr').length
+    const hasOnlyBrOrHr = children.length === brCount + hrCount
+
+    return hasNoText && (children.length === 0 || hasOnlyBrOrHr)
 }
 
 export function simplifyNestedElements($articleContent: Cheerio<Element>) {
@@ -76,7 +88,9 @@ export function simplifyNestedElements($articleContent: Cheerio<Element>) {
             node.parentNode &&
             node.parentNode.type === 'tag' &&
             TAGS_TO_SIMPLIFY.has(node.tagName) &&
-            !(id && id.startsWith('readability'))
+            !(id && id.startsWith('readability')) &&
+            (hasSingleTagInsideElement(node, 'div') ||
+                hasSingleTagInsideElement(node, 'section'))
         ) {
             if (isElementWithoutContent($node)) {
                 $node = removeAndGetNext($node)

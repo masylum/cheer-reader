@@ -10,7 +10,6 @@ import {
     okMaybeItsACandidate,
     unlikelyCandidates,
     srcsetUrl,
-    byline,
     normalize,
     shareElements,
 } from './regexes.js'
@@ -28,6 +27,7 @@ import {
     isProbablyVisible,
     hasSingleTagInsideElement,
     DIV_TO_P_ELEMS,
+    isElementWithoutContent,
 } from './utils.js'
 import { tagToString } from './tagToString.js'
 import { isPhrasingContent } from './isPhrasingContent.js'
@@ -47,11 +47,11 @@ import {
     getLinkDensity,
     textSimilarity,
     getInnerText,
-    isValidByline,
     wordCount,
-    isElementWithoutContent,
 } from './textUtils.js'
+import { extractByline } from './byline.js'
 import { simplifyDivs } from './utils/simplifyDivs.js'
+import { moveContentScoreToData, type Candidate } from './utils/contentScore.js'
 
 const FLAG_STRIP_UNLIKELYS = 0x1
 const FLAG_WEIGHT_CLASSES = 0x2
@@ -82,6 +82,8 @@ const ALTER_TO_DIV_EXCEPTIONS = new Set(['div', 'article', 'section', 'p'])
 
 // These are the classes that readability sets itself.
 const CLASSES_TO_PRESERVE = ['page']
+
+const TEXTISH_TAGS = ['span', 'li', 'td'].concat(Array.from(DIV_TO_P_ELEMS))
 
 /**
  * Options for the Readability library. All options are optional.
@@ -153,10 +155,6 @@ const DEFAULT_OPTIONS: Options = {
     allowedVideoRegex: videos,
     linkDensityModifier: 0,
     extraction: true,
-}
-
-type Candidate = Element & {
-    contentScore: number
 }
 
 /**
@@ -354,6 +352,9 @@ export class Readability {
     private prepArticle($articleContent: Cheerio<Element>) {
         cleanStyles($articleContent[0]!)
 
+        // We set the contentScore as data attributes so we can visualize them
+        if (this.options.debug) moveContentScoreToData($articleContent)
+
         // Check for data tables before we continue, to avoid removing items in
         // those tables, which will often be isolated even though they're
         // visually linked to other content-ful elements (text, images, etc.).
@@ -364,11 +365,9 @@ export class Readability {
         // Clean out junk from the article content
         this.cleanConditionally($articleContent, 'form')
         this.cleanConditionally($articleContent, 'fieldset')
-        this.clean($articleContent, 'object')
-        this.clean($articleContent, 'embed')
-        this.clean($articleContent, 'footer')
-        this.clean($articleContent, 'link')
-        this.clean($articleContent, 'aside')
+        this.cleanEmbeds($articleContent)
+        // prettier-ignore
+        this.clean($articleContent, [ 'footer', 'link', 'aside', 'input', 'textarea', 'select', 'button' ])
 
         // Clean out elements with little content that have "share" in their id/class combinations from final top candidates,
         // which means we don't remove the top candidates even they have "share".
@@ -387,11 +386,6 @@ export class Readability {
             })
         })
 
-        this.clean($articleContent, 'iframe')
-        this.clean($articleContent, 'input')
-        this.clean($articleContent, 'textarea')
-        this.clean($articleContent, 'select')
-        this.clean($articleContent, 'button')
         this.cleanHeaders($articleContent)
 
         // Do these last as the previous stuff may have removed junk
@@ -441,24 +435,6 @@ export class Readability {
         })
     }
 
-    private checkByline($node: Cheerio<Element>, matchString: string) {
-        if (this.articleByline) return false
-
-        const isAuthor = $node.attr('rel') === 'author'
-        const hasAuthorItemprop = $node.attr('itemprop')?.includes('author')
-        const bylineMatch = byline.test(matchString)
-
-        if (
-            (isAuthor || hasAuthorItemprop || bylineMatch) &&
-            isValidByline($node.text())
-        ) {
-            this.articleByline = getInnerText($node)
-            return true
-        }
-
-        return false
-    }
-
     private grabArticle() {
         const $ = this.$
 
@@ -504,7 +480,9 @@ export class Readability {
                 }
 
                 // Check to see if this node is a byline, and remove it if it is.
-                if (this.checkByline($node, matchString)) {
+                const byline = extractByline($node, matchString)
+                if (byline && !this.articleByline) {
+                    this.articleByline = byline
                     this.log('Removing byline', tagToString(node))
                     $node = removeAndGetNext($node)
                     continue
@@ -549,6 +527,7 @@ export class Readability {
                     }
                 }
 
+                // TODO: redundant?
                 // Remove DIV, SECTION, and HEADER nodes without any content(e.g. text, image, video, or iframe).
                 if (
                     EMPTY_TAGS.has(node.tagName) &&
@@ -563,9 +542,11 @@ export class Readability {
                     elementsToScore.push($node)
                 }
 
+                // TODO: Move to simplifyNested?
                 if (node.tagName === 'div') {
                     simplifyDivs($, node)
 
+                    // TODO: remove?
                     // Sites like http://mobile.slate.com encloses each paragraph with a DIV
                     // element. DIVs with only a P element inside and no text content can be
                     // safely converted into plain P elements to avoid confusing the scoring
@@ -594,13 +575,13 @@ export class Readability {
              * A score is determined by things like number of commas, class names, etc. Maybe eventually link density.
              **/
             const candidates: Candidate[] = []
-            elementsToScore.forEach(($elementToScore) => {
-                const el = $elementToScore[0]!
+            elementsToScore.forEach(($el) => {
+                const el = $el[0]! as Candidate
                 const parentNode = el.parentNode
                 if (!parentNode || parentNode.type !== 'tag') return
 
                 // If this paragraph is less than 25 characters, don't even count it.
-                const innerText = getInnerText($elementToScore)
+                const innerText = getInnerText($el)
                 if (innerText.length < 25) return
 
                 // Exclude nodes with no ancestor.
@@ -621,7 +602,6 @@ export class Readability {
                 // Initialize and score ancestors.
                 ancestors.forEach((ancestor, level) => {
                     if (
-                        !ancestor.tagName ||
                         !ancestor.parentNode ||
                         ancestor.parentNode.type !== 'tag'
                     )
@@ -693,7 +673,16 @@ export class Readability {
                 topCandidate = this.addContentScore(
                     $topCandidate[0] as Candidate,
                 )
+                this.log(
+                    `no top candidate found, setting default: ${tagToString(topCandidate)}`,
+                    topCandidate?.contentScore,
+                )
             } else if (topCandidate) {
+                this.log(
+                    `Top candidate: ${tagToString(topCandidate)}`,
+                    topCandidate?.contentScore,
+                )
+
                 // Find a better top candidate node if it contains (at least three) nodes which belong to `topCandidates` array
                 // and whose scores are quite closed with current `topCandidate` node.
                 const alternativeCandidateAncestors: AnyNode[][] = []
@@ -702,12 +691,25 @@ export class Readability {
                     const candidate = topCandidates[i]!
                     const threshold =
                         candidate.contentScore / topCandidate!.contentScore
+                    this.log(
+                        'Top candidate score threshold:',
+                        tagToString(candidate),
+                        candidate.contentScore,
+                        topCandidate!.contentScore,
+                        threshold,
+                    )
                     if (threshold >= 0.75) {
                         alternativeCandidateAncestors.push(
                             getNodeAncestors(candidate),
                         )
                     }
                 }
+                this.log(
+                    `Alternative ancestor candidates`,
+                    alternativeCandidateAncestors.map((ls) =>
+                        ls.map(tagToString),
+                    ),
+                )
 
                 const MINIMUM_TOPCANDIDATES = 3
 
@@ -722,6 +724,11 @@ export class Readability {
                         parentOfTopCandidate.tagName !== 'body'
                     ) {
                         let listsContainingThisAncestor = 0
+
+                        this.log(
+                            `Evaluating parent of top candidate: ${tagToString(parentOfTopCandidate)}`,
+                        )
+
                         for (
                             let ancestorIndex = 0;
                             ancestorIndex <
@@ -740,6 +747,10 @@ export class Readability {
                         ) {
                             topCandidate = this.addContentScore(
                                 parentOfTopCandidate as Candidate,
+                            )
+                            this.log(
+                                `New top candidate found: ${tagToString(parentOfTopCandidate)}`,
+                                topCandidate?.contentScore,
                             )
                             break
                         }
@@ -771,10 +782,23 @@ export class Readability {
                     }
                     const parentScore =
                         parentOfTopCandidate.contentScore as number
+
+                    this.log(
+                        `Re-evaluating parent of top candidate`,
+                        tagToString(parentOfTopCandidate),
+                        parentScore,
+                        scoreThreshold,
+                        lastScore,
+                    )
+
                     if (parentScore < scoreThreshold) break
                     if (parentScore > lastScore) {
                         // Alright! We found a better parent to use.
                         topCandidate = parentOfTopCandidate as Candidate
+                        this.log(
+                            `New top candidate found: ${tagToString(parentOfTopCandidate)}`,
+                            topCandidate?.contentScore,
+                        )
                         break
                     }
                     lastScore = parentScore
@@ -793,6 +817,10 @@ export class Readability {
                 ) {
                     topCandidate = this.addContentScore(
                         parentOfTopCandidate as Candidate,
+                    )
+                    this.log(
+                        `New top candidate found: ${tagToString(parentOfTopCandidate)}`,
+                        topCandidate?.contentScore,
                     )
                     parentOfTopCandidate = topCandidate.parentNode
                 }
@@ -814,7 +842,7 @@ export class Readability {
 
             for (let s = 0, sl = siblings.length; s < sl; s++) {
                 let append = false
-                const sibling = siblings[s]!
+                const sibling = siblings[s]! as Candidate
                 const $sibling = $(sibling)
 
                 this.log(
@@ -835,9 +863,8 @@ export class Readability {
                         contentBonus += topCandidate.contentScore * 0.2
 
                     if (
-                        'contentScore' in sibling &&
-                        (sibling.contentScore as number) + contentBonus >=
-                            siblingScoreThreshold
+                        sibling.contentScore + contentBonus >=
+                        siblingScoreThreshold
                     ) {
                         append = true
                     } else if (sibling.tagName === 'p') {
@@ -859,7 +886,11 @@ export class Readability {
                 }
 
                 if (append) {
-                    this.log(`Appending node: ${tagToString(sibling)}`)
+                    this.log(
+                        `Appending node: ${tagToString(sibling)}`,
+                        siblingScoreThreshold,
+                        sibling.contentScore,
+                    )
 
                     if (!ALTER_TO_DIV_EXCEPTIONS.has(sibling.tagName)) {
                         // We have a node that isn't a common block level element, like a form or td tag.
@@ -887,7 +918,7 @@ export class Readability {
                 }
             }
 
-            this.log('Article content pre-prep: ' + $articleContent.html())
+            // this.log('Article content pre-prep: ' + $articleContent.html())
 
             // So we have all of the content that we need. Now we clean it up for presentation.
             this.prepArticle($articleContent)
@@ -1263,35 +1294,36 @@ export class Readability {
         return weight
     }
 
-    private clean($el: Cheerio<Element>, tag: string) {
-        const isEmbed = ['object', 'embed', 'iframe'].includes(tag)
-
-        removeNodes($el.find(tag), ($node) => {
+    private cleanEmbeds($el: Cheerio<Element>) {
+        removeNodes($el.find('object, embed, iframe'), ($node) => {
             const node = $node[0]!
-            // Allow youtube and vimeo videos through as people usually want to see those.
-            if (isEmbed) {
-                // First, check the node attributes to see if any of them contain youtube or vimeo
-                for (let i = 0; i < node.attributes.length; i++) {
-                    if (
-                        this.options.allowedVideoRegex.test(
-                            node.attributes[i]!.value,
-                        )
-                    ) {
-                        return false
-                    }
-                }
 
-                // For embed with <object> tag, check inner HTML as well.
+            // Allow youtube and vimeo videos through as people usually want to see those.
+            // First, check the node attributes to see if any of them contain youtube or vimeo
+            for (let i = 0; i < node.attributes.length; i++) {
                 if (
-                    node.tagName === 'object' &&
-                    this.options.allowedVideoRegex.test($node.html() || '')
+                    this.options.allowedVideoRegex.test(
+                        node.attributes[i]!.value,
+                    )
                 ) {
                     return false
                 }
             }
 
+            // For embed with <object> tag, check inner HTML as well.
+            if (
+                node.tagName === 'object' &&
+                this.options.allowedVideoRegex.test($node.html() || '')
+            ) {
+                return false
+            }
+
             return true
         })
+    }
+
+    private clean($el: Cheerio<Element>, tags: string[]) {
+        $el.find(tags.join(',')).remove()
     }
 
     /**
@@ -1603,10 +1635,7 @@ export class Readability {
 
             const contentLength = innerText.length
             const linkDensity = getLinkDensity($, $node)
-            const textishTags = ['span', 'li', 'td'].concat(
-                Array.from(DIV_TO_P_ELEMS),
-            )
-            const textDensity = this.getTextDensity($node, textishTags)
+            const textDensity = this.getTextDensity($node, TEXTISH_TAGS)
             const isFigureChild = hasAncestorTag(node, 'figure')
 
             // apply shadiness checks, then check for exceptions
@@ -1771,14 +1800,13 @@ export class Readability {
         this.articleTitle = metadata.title || null
 
         if (this.options.extraction) {
+            // TODO: Make all the preprocess in one traversal
+
             // Remove all comments
             removeComments(this.$, this.$.root()[0])
 
-            // Remove all scripts once we've got the metadata
-            removeNodes(this.$('script, noscript'))
-
-            // Remove all style tags in head
-            removeNodes(this.$('style'))
+            // Remove all the non-relevant things
+            removeNodes(this.$('script, noscript, style, map'))
 
             // Replace <br> chains with <p>
             replaceBrs(this.$)

@@ -1,31 +1,31 @@
-const debug = false
-
 import { join } from 'node:path'
-import fs from 'fs'
+import fs from 'node:fs'
 import { Readability, type ReadabilityResult } from '../src/index.js'
 import { load } from 'cheerio'
 import { prettyPrint } from './utils.js'
+import { fileURLToPath } from 'node:url'
 
+const debug = false
+const testPageRoot = fileURLToPath(new URL('./test-pages', import.meta.url))
 const FFX_UA =
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:80.0) Gecko/20100101 Firefox/80.0'
-
-const testcaseRoot = join(__dirname, 'test-pages')
-
 const argURL = process.argv[3] as string | undefined
 
 function generateTestcase(slug: string) {
-    const destRoot = join(testcaseRoot, slug)
+    const destRoot = join(testPageRoot, slug)
 
-    fs.mkdirSync(destRoot)
+    const dirExists = fs.existsSync(destRoot)
+    if (!dirExists) fs.mkdirSync(destRoot)
 
-    const sourceFile = join(destRoot, 'source.html')
-    const exists = fs.existsSync(sourceFile)
+    const sourcePath = join(destRoot, 'source.html')
+    const srcExists = fs.existsSync(sourcePath)
 
-    if (exists) {
-        const data = fs.readFileSync(sourceFile, { encoding: 'utf-8' })
+    if (srcExists) {
+        const data = fs.readFileSync(sourcePath, { encoding: 'utf-8' })
         onResponseReceived(data, destRoot)
     } else {
         fetchSource(argURL).then((text) => {
+            fs.writeFileSync(sourcePath, text)
             onResponseReceived(text, destRoot)
         })
     }
@@ -48,20 +48,17 @@ async function fetchSource(url: string | undefined) {
     return await response.text()
 }
 
-function onResponseReceived(source: string, destRoot: string) {
+function onResponseReceived(text: string, destRoot: string) {
     if (debug) {
         console.log('writing')
     }
-
-    const sourcePath = join(destRoot, 'source.html')
-    fs.writeFileSync(sourcePath, source)
 
     if (debug) {
         console.log('Running readability stuff')
     }
 
     runReadability(
-        source,
+        text,
         join(destRoot, 'expected.html'),
         join(destRoot, 'expected-metadata.json'),
     )
@@ -106,7 +103,7 @@ if (process.argv.length < 3) {
 }
 
 if (process.argv[2] === 'all') {
-    const files = fs.readdirSync(testcaseRoot)
+    const files = fs.readdirSync(testPageRoot)
 
     files.forEach(function (file) {
         generateTestcase(file)

@@ -11,6 +11,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { prettyPrint } from './utils.js'
+import { tagToString } from '../src/tagToString.js'
 
 const testPageRoot = fileURLToPath(new URL('./test-pages', import.meta.url))
 const testPages = readdirSync(testPageRoot)
@@ -34,38 +35,23 @@ function getTestPagesData(dir: string) {
         ),
     }
 }
-function nodeStr(n: AnyNode | null) {
-    if (!n) return '(no node)'
-    if (n.type == 'text') return `#text(${htmlTransform(n.data)})`
-    if (n.type !== 'tag') return `#${n.nodeType}`
-
-    let rv = n.tagName
-    if (n.attribs?.id) rv += `#${n.attribs?.id}`
-    if (n.attribs?.className) rv += `.(${n.attribs?.className})`
-
-    return rv
-}
 
 function genPath(node: AnyNode): string {
     if (!node) return '(no node)'
-    if (node.type !== 'tag') return '(no tag)'
-    if (node.attribs?.id) return `#${node.attribs?.id}`
-    if (node.tagName == 'body') return '(body)'
 
     const parent = node.parentNode
-    if (!parent) return '(no parent)'
+    if (!parent) return '#root'
 
     const parentPath = genPath(parent)
     const index = parent.childNodes.indexOf(node) + 1
 
-    return `${parentPath} > ${nodeStr(node)}:nth-child(${index})`
+    return `${parentPath} > ${tagToString(node)} :nth-child(${index})`
 }
 
-function findableNodeDesc(node: AnyNode) {
-    const parent = node.parentNode
-    const parentTag = parent?.type === 'tag' ? parent.tagName : 'no parent'
+function findableNodeDesc(node: AnyNode | null) {
+    if (!node) return '(no node)'
 
-    return `${genPath(node)} (in: "${parentTag}")`
+    return `${genPath(node)}`
 }
 
 function attributesForNode(node: Element) {
@@ -152,8 +138,8 @@ function runTestsWithItems(
             traverseDOM(
                 (actualNode, expectedNode) => {
                     if (actualNode && expectedNode) {
-                        const actualDesc = nodeStr(actualNode)
-                        const expectedDesc = nodeStr(expectedNode)
+                        const actualDesc = tagToString(actualNode)
+                        const expectedDesc = tagToString(expectedNode)
 
                         if (actualDesc !== expectedDesc) {
                             expect(
@@ -188,7 +174,7 @@ function runTestsWithItems(
                             const actualNodeDesc = attributesForNode(actualNode)
                             const expectedNodeDesc =
                                 attributesForNode(expectedNode)
-                            const nodeDesc = nodeStr(actualNode)
+                            const nodeDesc = tagToString(actualNode)
 
                             expect(
                                 actualNode.attributes.length,
@@ -208,9 +194,9 @@ function runTestsWithItems(
                         }
                     } else {
                         expect(
-                            nodeStr(actualNode),
+                            findableNodeDesc(actualNode),
                             'Should have a node from both DOMs',
-                        ).eql(nodeStr(expectedNode))
+                        ).eql(findableNodeDesc(expectedNode))
                         return false
                     }
 
@@ -279,6 +265,7 @@ describe('#parse', () => {
         const content = new Readability($, {
             charThreshold: 20,
             allowedVideoRegex: /.*mycustomdomain.com.*/,
+            // debug: true,
         }).parse().content
 
         expect(content).eql(expected_xhtml)
