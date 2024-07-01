@@ -18,7 +18,7 @@ The goals of this port are the following:
     [Happy Dom](https://github.com/capricorn86/happy-dom) or [Linkedom](https://github.com/WebReflection/linkedom).
     I had compatibility problems using those alternative implementations, but **cheerio** worked flawlesly even
     with the most broken html documents that you can find on the internet. You even have the option to use
-    [htmlparser2](https://github.com/fb55/htmlparser2) instead of **cherio's** default [parse5](https://github.com/inikulin/parse5)
+    [htmlparser2](https://github.com/fb55/htmlparser2) instead of **cheerio**'s default [parse5](https://github.com/inikulin/parse5)
     for less strict parsing.
 -   **Extensability**: The original implementation is pretty hard to read and maintain. While I didn't deviate
     much from it, I tried to modernize the code base a little bit. I hope people can help me out, specially with
