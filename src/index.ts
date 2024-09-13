@@ -957,29 +957,18 @@ export class Readability {
                 parseSuccessful = false
                 $page.html(pageCacheHtml)
 
+                this.attempts.push({
+                    articleContent: $articleContent,
+                    textLength,
+                })
+
                 if (this.flagIsActive(FLAG_STRIP_UNLIKELYS)) {
                     this.removeFlag(FLAG_STRIP_UNLIKELYS)
-                    this.attempts.push({
-                        articleContent: $articleContent,
-                        textLength,
-                    })
                 } else if (this.flagIsActive(FLAG_WEIGHT_CLASSES)) {
                     this.removeFlag(FLAG_WEIGHT_CLASSES)
-                    this.attempts.push({
-                        articleContent: $articleContent,
-                        textLength,
-                    })
                 } else if (this.flagIsActive(FLAG_CLEAN_CONDITIONALLY)) {
                     this.removeFlag(FLAG_CLEAN_CONDITIONALLY)
-                    this.attempts.push({
-                        articleContent: $articleContent,
-                        textLength,
-                    })
                 } else {
-                    this.attempts.push({
-                        articleContent: $articleContent,
-                        textLength,
-                    })
                     // No luck after removing flags, just return the longest text we found during the different loops
                     this.attempts.sort(function (a, b) {
                         return b.textLength - a.textLength

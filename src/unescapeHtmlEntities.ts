@@ -18,8 +18,18 @@ export function unescapeHtmlEntities(str: string | null | undefined) {
             const index = tag as keyof typeof HTML_ESCAPE_MAP
             return HTML_ESCAPE_MAP[index]
         })
-        .replace(/&#(?:x([0-9a-z]{1,4})|([0-9]{1,4}));/gi, (_, hex, numStr) => {
-            const num = parseInt(hex || numStr, hex ? 16 : 10)
-            return String.fromCharCode(num)
+        .replace(/&#(?:x([0-9a-f]+)|([0-9]+));/gi, function (_, hex, numStr) {
+            let num = parseInt(hex || numStr, hex ? 16 : 10)
+
+            // these character references are replaced by a conforming HTML parser
+            if (
+                num == 0 ||
+                num > 0x10ffff ||
+                (num >= 0xd800 && num <= 0xdfff)
+            ) {
+                num = 0xfffd
+            }
+
+            return String.fromCodePoint(num)
         })
 }
